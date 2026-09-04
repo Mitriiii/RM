@@ -1,0 +1,17 @@
+{
+  "id": { "source": "TEST_ONLY", "version": "0", "effectiveDate": "2020-01-01" },
+  "gwpSet": "TEST_ONLY-GWP",
+  "factors": [
+    {
+      "toc": {
+        "vehicleType": "rigid-12t",
+        "fuelType": "diesel",
+        "loadProfile": "average",
+        "region": "ES"
+      },
+      "wellToTankGramsPerTonneKm": 11,
+      "tankToWheelGramsPerTonneKm": 89,
+      "wellToWheelGramsPerTonneKm": 100
+    }
+  ]
+}

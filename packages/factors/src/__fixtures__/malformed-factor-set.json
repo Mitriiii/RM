@@ -1,0 +1,5 @@
+{
+  "id": { "source": "TEST_ONLY", "version": "0", "effectiveDate": "2020-01-01" },
+  "gwpSet": "TEST_ONLY-GWP",
+  "factors": []
+}

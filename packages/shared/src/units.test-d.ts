@@ -7,9 +7,12 @@
 import { expectTypeOf } from 'vitest';
 import {
   type GramsCO2e,
+  type GramsCO2ePerTonneKilometre,
   type Kilograms,
   type Kilometres,
   type TonneKilometres,
+  applyEmissionIntensity,
+  gramsCO2ePerTonneKilometre,
   kilograms,
   kilometres,
   transportActivity,
@@ -17,6 +20,7 @@ import {
 
 const mass: Kilograms = kilograms(1_000);
 const distance: Kilometres = kilometres(650);
+const intensity: GramsCO2ePerTonneKilometre = gramsCO2ePerTonneKilometre(62);
 
 // @ts-expect-error — Kilograms is not assignable to Kilometres, even though both are numbers.
 const wrongOrder: Kilometres = mass;
@@ -33,5 +37,16 @@ expectTypeOf<Kilograms>().not.toEqualTypeOf<Kilometres>();
 expectTypeOf<Kilograms>().not.toEqualTypeOf<GramsCO2e>();
 expectTypeOf<Kilometres>().not.toEqualTypeOf<TonneKilometres>();
 
+const activity: TonneKilometres = transportActivity(mass, distance);
+
+// @ts-expect-error — a TonneKilometres is not a GramsCO2ePerTonneKilometre; the rate and the
+// activity it multiplies must not be interchangeable just because both are numbers.
+const wrongUnit: GramsCO2ePerTonneKilometre = activity;
+
+expectTypeOf(applyEmissionIntensity(activity, intensity)).toEqualTypeOf<GramsCO2e>();
+expectTypeOf<GramsCO2ePerTonneKilometre>().not.toEqualTypeOf<GramsCO2e>();
+expectTypeOf<GramsCO2ePerTonneKilometre>().not.toEqualTypeOf<TonneKilometres>();
+
 void wrongOrder;
 void bareNumber;
+void wrongUnit;

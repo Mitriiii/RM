@@ -15,6 +15,7 @@ export type Kilograms = Brand<number, 'Kilograms'>;
 export type Kilometres = Brand<number, 'Kilometres'>;
 export type TonneKilometres = Brand<number, 'TonneKilometres'>;
 export type GramsCO2e = Brand<number, 'GramsCO2e'>;
+export type GramsCO2ePerTonneKilometre = Brand<number, 'GramsCO2ePerTonneKilometre'>;
 
 export class InvalidUnitValueError extends RangeError {
   constructor(unit: string, value: number) {
@@ -44,6 +45,10 @@ export function tonneKilometres(value: number): TonneKilometres {
 
 export function gramsCO2e(value: number): GramsCO2e {
   return brand('GramsCO2e', value);
+}
+
+export function gramsCO2ePerTonneKilometre(value: number): GramsCO2ePerTonneKilometre {
+  return brand('GramsCO2ePerTonneKilometre', value);
 }
 
 const KILOGRAMS_PER_TONNE = 1_000;
@@ -81,4 +86,16 @@ export function kilogramsCO2eToGramsCO2e(kilogramsCO2e: number): GramsCO2e {
  */
 export function transportActivity(mass: Kilograms, distance: Kilometres): TonneKilometres {
   return tonneKilometres(kilogramsToTonnes(mass) * distance);
+}
+
+/**
+ * A leg's emissions: transport activity × the transport operation category's emission
+ * intensity. This is the core ISO 14083 allocation formula from CLAUDE.md, applied once per
+ * WTT/TTW/WTW component by the caller.
+ */
+export function applyEmissionIntensity(
+  activity: TonneKilometres,
+  intensity: GramsCO2ePerTonneKilometre,
+): GramsCO2e {
+  return gramsCO2e(activity * intensity);
 }
