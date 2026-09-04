@@ -1,0 +1,11 @@
+node_modules
+dist
+build
+.next
+coverage
+pnpm-lock.yaml
+
+# Hand-authored project docs — not ours to reflow.
+CLAUDE.md
+KICKOFF-PROMPT.md
+docs/FREYO-Concept-v2.md

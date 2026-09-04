@@ -1,0 +1,12 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/factors" },
+    { "path": "packages/emissions" },
+    { "path": "packages/matching" },
+    { "path": "packages/routing" },
+    { "path": "packages/db" },
+    { "path": "apps/api" }
+  ]
+}
