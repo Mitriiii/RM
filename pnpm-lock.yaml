@@ -104,6 +104,9 @@ importers:
 
   packages/emissions:
     dependencies:
+      '@freyo/factors':
+        specifier: workspace:*
+        version: link:../factors
       '@freyo/shared':
         specifier: workspace:*
         version: link:../shared

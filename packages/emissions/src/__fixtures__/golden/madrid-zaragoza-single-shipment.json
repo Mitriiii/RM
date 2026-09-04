@@ -1,0 +1,27 @@
+{
+  "description": "Madrid -> Zaragoza, single shipment, no leg sharing. Fictional TEST_ONLY factors — see CLAUDE.md and packages/factors/data/README.md.",
+  "leg": {
+    "toc": {
+      "vehicleType": "rigid-12t",
+      "fuelType": "diesel",
+      "loadProfile": "average",
+      "region": "ES"
+    },
+    "distanceKm": 325,
+    "routingSource": "TEST_ONLY",
+    "dataQuality": "modelled"
+  },
+  "shipments": [{ "shipmentId": "SHIP-A", "massKg": 8000 }],
+  "expected": {
+    "activityTonneKm": 2600,
+    "totals": { "wellToTank": 39000, "tankToWheel": 221000, "wellToWheel": 260000 },
+    "shipments": {
+      "SHIP-A": {
+        "allocationShare": 1,
+        "wellToTank": 39000,
+        "tankToWheel": 221000,
+        "wellToWheel": 260000
+      }
+    }
+  }
+}

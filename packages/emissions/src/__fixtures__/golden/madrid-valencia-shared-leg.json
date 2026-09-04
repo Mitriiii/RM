@@ -1,0 +1,36 @@
+{
+  "description": "Madrid -> Valencia, one articulated truck shared by two shipments (a pooled backhaul leg). Fictional TEST_ONLY factors — see CLAUDE.md and packages/factors/data/README.md.",
+  "leg": {
+    "toc": {
+      "vehicleType": "articulated-40t",
+      "fuelType": "diesel",
+      "loadProfile": "average",
+      "region": "ES"
+    },
+    "distanceKm": 357,
+    "routingSource": "TEST_ONLY",
+    "dataQuality": "modelled"
+  },
+  "shipments": [
+    { "shipmentId": "SHIP-X", "massKg": 12000 },
+    { "shipmentId": "SHIP-Y", "massKg": 8000 }
+  ],
+  "expected": {
+    "activityTonneKm": 7140,
+    "totals": { "wellToTank": 85680, "tankToWheel": 556920, "wellToWheel": 642600 },
+    "shipments": {
+      "SHIP-X": {
+        "allocationShare": 0.6,
+        "wellToTank": 51408,
+        "tankToWheel": 334152,
+        "wellToWheel": 385560
+      },
+      "SHIP-Y": {
+        "allocationShare": 0.4,
+        "wellToTank": 34272,
+        "tankToWheel": 222768,
+        "wellToWheel": 257040
+      }
+    }
+  }
+}

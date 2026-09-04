@@ -17,6 +17,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@freyo/factors": "workspace:*",
     "@freyo/shared": "workspace:*"
   },
   "devDependencies": {
