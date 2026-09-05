@@ -23,7 +23,9 @@ export interface DiagnosticReportInputs {
  * applies to this heuristic estimate the same way it applies to a measured one.
  */
 export type LaneConfidenceGrade = 'modelled' | 'default';
-const MODELLED_MIN_MOVEMENTS_OBSERVED = 5;
+/** Exported so the report screen's plain-language confidence explanation can cite this exact
+ * number instead of restating it as a separately hand-written claim that could drift. */
+export const MODELLED_MIN_MOVEMENTS_OBSERVED = 5;
 
 function laneConfidenceGrade(movementsObserved: number): LaneConfidenceGrade {
   return movementsObserved >= MODELLED_MIN_MOVEMENTS_OBSERVED ? 'modelled' : 'default';

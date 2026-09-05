@@ -2,9 +2,21 @@
 
 import { Fragment, useMemo, useState } from 'react';
 import { DataQualityBadge } from '@/components/ui/DataQualityBadge';
-import { Caption, DataValue, Label, PageTitle, SectionTitle } from '@/components/ui/Typography';
+import { InfoToggle } from '@/components/ui/InfoToggle';
+import {
+  Caption,
+  DataValue,
+  Label,
+  Lede,
+  PageTitle,
+  SectionTitle,
+} from '@/components/ui/Typography';
 import { ets2CostEur, ETS2_PRICE_CONTAINMENT_ANCHOR_EUR_PER_TONNE } from '@/lib/diagnostic/costs';
-import type { DiagnosticReport, LaneReportRow } from '@/lib/diagnostic/report';
+import {
+  MODELLED_MIN_MOVEMENTS_OBSERVED,
+  type DiagnosticReport,
+  type LaneReportRow,
+} from '@/lib/diagnostic/report';
 
 interface ReportViewProps {
   readonly report: DiagnosticReport;
@@ -18,6 +30,12 @@ function formatNumber(value: number, fractionDigits = 0): string {
     minimumFractionDigits: fractionDigits,
     maximumFractionDigits: fractionDigits,
   });
+}
+
+/** VehicleCategory is a closed set ('rigid' | 'articulated') — an explicit lookup rather than
+ * a generic vowel-sound heuristic that could get the wrong article for a future category. */
+function indefiniteArticleFor(category: LaneReportRow['assumedVehicleCategory']): string {
+  return category === 'articulated' ? 'an' : 'a';
 }
 
 function formatDirection(lane: LaneReportRow): string {
@@ -46,6 +64,12 @@ export function ReportView({
   const totalCO2e = report.totalWellToWheelGrams;
   const totalCO2eTonnes = totalCO2e / 1_000_000;
   const anchorExposureEur = ets2CostEur(totalCO2e, ETS2_PRICE_CONTAINMENT_ANCHOR_EUR_PER_TONNE);
+
+  // Computed once and reused by both the plain-language headline and the technical summary
+  // row below it, so the two can never drift apart into separately-restated numbers.
+  const totalEmptyKmDisplay = `${formatNumber(report.totalEmptyKm)} km`;
+  const totalDieselCostDisplay = `€${formatNumber(report.totalEmptyDieselCostEur)}`;
+  const totalCO2eKgDisplay = `${formatNumber(totalCO2e / 1_000, 1)} kg`;
 
   const sortedLanes = useMemo(() => {
     const factor = sort.direction === 'asc' ? 1 : -1;
@@ -101,18 +125,24 @@ export function ReportView({
         calculation.
       </div>
 
+      {/* Simple by default, rigorous on demand: one plain-language sentence — built from the
+          exact same totals as the technical row right below it, never a second calculation
+          — before the dense restatement a returning viewer already knows how to read. */}
+      {report.lanes.length > 0 && (
+        <Lede className="mb-4" testId="report-headline">
+          Across the lanes you uploaded, trucks ran empty for a total of{' '}
+          <DataValue className="text-subtitle">{totalEmptyKmDisplay}</DataValue> — about{' '}
+          <DataValue className="text-subtitle">{totalDieselCostDisplay}</DataValue> in diesel and{' '}
+          <DataValue className="text-subtitle">{totalCO2eKgDisplay}</DataValue> of CO2e.
+        </Lede>
+      )}
+
       {/* A dense summary row, not a hero stat grid — CLAUDE.md forbids "a big number over a
           small caption" as the primary layout; the lane table below is the actual hero. */}
       <section className="mb-6 flex flex-wrap gap-x-8 gap-y-2 border border-slate-300 bg-slate-50 px-4 py-3">
         <SummaryItem label="Lanes with probable empty legs" value={String(report.lanes.length)} />
-        <SummaryItem
-          label="Probable empty distance"
-          value={`${formatNumber(report.totalEmptyKm)} km`}
-        />
-        <SummaryItem
-          label="Diesel cost"
-          value={`€${formatNumber(report.totalEmptyDieselCostEur)}`}
-        />
+        <SummaryItem label="Probable empty distance" value={totalEmptyKmDisplay} />
+        <SummaryItem label="Diesel cost" value={totalDieselCostDisplay} />
         <SummaryItem label="CO2e (WTW)" value={`${formatNumber(totalCO2eTonnes, 3)} t`} />
       </section>
 
@@ -155,90 +185,148 @@ export function ReportView({
             No probable empty legs found — every lane in this file is directionally balanced.
           </p>
         ) : (
-          <div className="mt-2 overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="border-b border-slate-400 text-left">
-                  <Th>Lane</Th>
-                  <SortableTh sortKey="movementsObserved" sort={sort} onSort={toggleSort}>
-                    Movements
-                  </SortableTh>
-                  <Th>Trips A→B / B→A</Th>
-                  <Th>Presumed empty</Th>
-                  <SortableTh sortKey="distanceKm" sort={sort} onSort={toggleSort} align="right">
-                    Distance
-                  </SortableTh>
-                  <SortableTh sortKey="emptyKm" sort={sort} onSort={toggleSort} align="right">
-                    Empty km
-                  </SortableTh>
-                  <SortableTh
-                    sortKey="emptyDieselCostEur"
-                    sort={sort}
-                    onSort={toggleSort}
-                    align="right"
-                  >
-                    Diesel cost
-                  </SortableTh>
-                  <Th align="right">WTT</Th>
-                  <Th align="right">TTW</Th>
-                  <SortableTh
-                    sortKey="wellToWheelGrams"
-                    sort={sort}
-                    onSort={toggleSort}
-                    align="right"
-                  >
-                    WTW
-                  </SortableTh>
-                  <Th>Confidence</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedLanes.map((lane) => {
-                  const key = `${lane.cityA}|${lane.cityB}`;
-                  const expanded = expandedLane === key;
-                  return (
-                    <Fragment key={key}>
-                      <tr
-                        className="cursor-pointer border-b border-slate-200 hover:bg-slate-50"
-                        onClick={() => setExpandedLane(expanded ? undefined : key)}
-                      >
-                        <td className="whitespace-nowrap px-2 py-1.5 capitalize text-slate-900">
-                          {lane.cityA} ↔ {lane.cityB}
-                        </td>
-                        <Td>{lane.movementsObserved}</Td>
-                        <td className="whitespace-nowrap px-2 py-1.5 text-body tabular-nums text-slate-700">
-                          {lane.tripsAtoB} / {lane.tripsBtoA}
-                        </td>
-                        <td className="whitespace-nowrap px-2 py-1.5 text-body text-slate-700">
-                          {formatDirection(lane)}
-                        </td>
-                        <Td align="right">{formatNumber(lane.distanceKm)} km</Td>
-                        <Td align="right" emphasis>
-                          {formatNumber(lane.emptyKm)} km
-                        </Td>
-                        <Td align="right">€{formatNumber(lane.emptyDieselCostEur)}</Td>
-                        <Td align="right">{formatNumber(lane.wellToTankGrams / 1_000, 1)} kg</Td>
-                        <Td align="right">{formatNumber(lane.tankToWheelGrams / 1_000, 1)} kg</Td>
-                        <Td align="right" emphasis>
-                          {formatNumber(lane.wellToWheelGrams / 1_000, 1)} kg
-                        </Td>
-                        <td className="whitespace-nowrap px-2 py-1.5">
-                          <DataQualityBadge grade={lane.confidenceGrade} />
-                        </td>
-                      </tr>
-                      {expanded && (
-                        <tr className="border-b border-slate-200 bg-slate-50">
-                          <td colSpan={11} className="px-3 py-3 text-slate-700">
-                            <LaneDerivation lane={lane} />
+          <>
+            <Caption className="mt-1 print:hidden">
+              Click a lane to see the full calculation behind its numbers.
+            </Caption>
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-400 text-left">
+                    <Th>Lane</Th>
+                    <SortableTh sortKey="movementsObserved" sort={sort} onSort={toggleSort}>
+                      Movements
+                    </SortableTh>
+                    <Th>Trips A→B / B→A</Th>
+                    <Th>Presumed empty</Th>
+                    <SortableTh sortKey="distanceKm" sort={sort} onSort={toggleSort} align="right">
+                      Distance
+                    </SortableTh>
+                    <SortableTh sortKey="emptyKm" sort={sort} onSort={toggleSort} align="right">
+                      Empty km
+                    </SortableTh>
+                    <SortableTh
+                      sortKey="emptyDieselCostEur"
+                      sort={sort}
+                      onSort={toggleSort}
+                      align="right"
+                    >
+                      Diesel cost
+                    </SortableTh>
+                    <Th
+                      align="right"
+                      technical="WTT"
+                      info={{
+                        label: 'What is well-to-tank CO2e?',
+                        text: "Well-to-tank: the CO2e released producing and distributing the diesel, before it's burned.",
+                      }}
+                    >
+                      Fuel production
+                    </Th>
+                    <Th
+                      align="right"
+                      technical="TTW"
+                      info={{
+                        label: 'What is tank-to-wheel CO2e?',
+                        text: 'Tank-to-wheel: the CO2e released burning the diesel in the engine.',
+                      }}
+                    >
+                      Combustion
+                    </Th>
+                    <SortableTh
+                      sortKey="wellToWheelGrams"
+                      sort={sort}
+                      onSort={toggleSort}
+                      align="right"
+                      technical="WTW"
+                      info={{
+                        label: 'What is well-to-wheel CO2e?',
+                        text: 'Well-to-wheel: fuel production plus combustion combined — the headline CO2e figure ISO 14083 reports.',
+                      }}
+                    >
+                      Total CO2e
+                    </SortableTh>
+                    <Th>Confidence</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedLanes.map((lane) => {
+                    const key = `${lane.cityA}|${lane.cityB}`;
+                    const expanded = expandedLane === key;
+                    return (
+                      <Fragment key={key}>
+                        <tr
+                          className="cursor-pointer border-b border-slate-200 hover:bg-slate-50"
+                          onClick={() => setExpandedLane(expanded ? undefined : key)}
+                        >
+                          <td className="whitespace-nowrap px-2 py-1.5 capitalize text-slate-900">
+                            <span className="inline-flex items-center gap-1.5">
+                              <Chevron expanded={expanded} />
+                              <span className="underline decoration-slate-300 decoration-dotted underline-offset-4">
+                                {lane.cityA} ↔ {lane.cityB}
+                              </span>
+                            </span>
+                          </td>
+                          <Td>{lane.movementsObserved}</Td>
+                          <td className="whitespace-nowrap px-2 py-1.5 text-body tabular-nums text-slate-700">
+                            {lane.tripsAtoB} / {lane.tripsBtoA}
+                          </td>
+                          <td className="whitespace-nowrap px-2 py-1.5 text-body text-slate-700">
+                            {formatDirection(lane)}
+                          </td>
+                          <Td align="right">{formatNumber(lane.distanceKm)} km</Td>
+                          <Td align="right" emphasis>
+                            {formatNumber(lane.emptyKm)} km
+                          </Td>
+                          <Td align="right">€{formatNumber(lane.emptyDieselCostEur)}</Td>
+                          <Td align="right">{formatNumber(lane.wellToTankGrams / 1_000, 1)} kg</Td>
+                          <Td align="right">{formatNumber(lane.tankToWheelGrams / 1_000, 1)} kg</Td>
+                          <Td align="right" emphasis>
+                            {formatNumber(lane.wellToWheelGrams / 1_000, 1)} kg
+                          </Td>
+                          <td className="whitespace-nowrap px-2 py-1.5">
+                            <span className="inline-flex items-center">
+                              <DataQualityBadge grade={lane.confidenceGrade} />
+                              <InfoToggle
+                                label={`What does this confidence grade mean for ${lane.cityA} to ${lane.cityB}?`}
+                              >
+                                {lane.confidenceGrade === 'modelled' ? (
+                                  <>
+                                    <strong>Modelled</strong> — based on {lane.movementsObserved}{' '}
+                                    observed movements on this lane, at or above the{' '}
+                                    {MODELLED_MIN_MOVEMENTS_OBSERVED}-movement threshold we use
+                                    before treating the pattern as reliable.
+                                  </>
+                                ) : (
+                                  <>
+                                    <strong>Default</strong> — based on only{' '}
+                                    {lane.movementsObserved} observed movement
+                                    {lane.movementsObserved === 1 ? '' : 's'} on this lane, below
+                                    the {MODELLED_MIN_MOVEMENTS_OBSERVED}-movement threshold, so
+                                    treat this estimate with more caution.
+                                  </>
+                                )}
+                              </InfoToggle>
+                            </span>
                           </td>
                         </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {expanded && (
+                          <tr className="border-b border-slate-200 bg-slate-50">
+                            <td colSpan={11} className="px-3 py-3 text-slate-700">
+                              <LaneDerivation
+                                lane={lane}
+                                routingEngineVersion={report.routingEngineVersion}
+                              />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </section>
 
@@ -321,14 +409,49 @@ function SummaryItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Th({ children, align = 'left' }: { children: React.ReactNode; align?: 'left' | 'right' }) {
+interface HeaderInfo {
+  readonly label: string;
+  readonly text: React.ReactNode;
+}
+
+/** The technical term stays visible (never hidden behind the plain-language label) and the
+ * explanation is a real sentence on demand — never a bare tooltip expanding the acronym. */
+function TechnicalTerm({
+  technical,
+  info,
+}: {
+  technical?: string | undefined;
+  info?: HeaderInfo | undefined;
+}) {
+  if (!technical) return null;
+  return (
+    <span className="inline-flex items-center whitespace-nowrap font-normal text-slate-400">
+      ({technical}){info && <InfoToggle label={info.label}>{info.text}</InfoToggle>}
+    </span>
+  );
+}
+
+function Th({
+  children,
+  align = 'left',
+  technical,
+  info,
+}: {
+  children: React.ReactNode;
+  align?: 'left' | 'right';
+  technical?: string | undefined;
+  info?: HeaderInfo | undefined;
+}) {
   return (
     <th
       className={`whitespace-nowrap px-2 py-1.5 text-label font-medium text-slate-600 ${
         align === 'right' ? 'text-right' : 'text-left'
       }`}
     >
-      {children}
+      <span className="inline-flex items-center gap-1">
+        {children}
+        <TechnicalTerm technical={technical} info={info} />
+      </span>
     </th>
   );
 }
@@ -339,12 +462,16 @@ function SortableTh({
   sort,
   onSort,
   align = 'left',
+  technical,
+  info,
 }: {
   children: React.ReactNode;
   sortKey: SortKey;
   sort: { key: SortKey; direction: 'asc' | 'desc' };
   onSort: (key: SortKey) => void;
   align?: 'left' | 'right';
+  technical?: string | undefined;
+  info?: HeaderInfo | undefined;
 }) {
   const active = sort.key === sortKey;
   return (
@@ -353,19 +480,36 @@ function SortableTh({
         align === 'right' ? 'text-right' : 'text-left'
       }`}
     >
-      <button
-        type="button"
-        onClick={() => onSort(sortKey)}
-        className={`inline-flex items-center gap-1 print:pointer-events-none ${
-          active ? 'text-slate-900' : 'text-slate-600 hover:text-slate-900'
-        }`}
-      >
-        {children}
-        <span aria-hidden="true" className="text-slate-400">
-          {active ? (sort.direction === 'desc' ? '↓' : '↑') : '↕'}
-        </span>
-      </button>
+      <span className="inline-flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => onSort(sortKey)}
+          className={`inline-flex items-center gap-1 print:pointer-events-none ${
+            active ? 'text-slate-900' : 'text-slate-600 hover:text-slate-900'
+          }`}
+        >
+          {children}
+          <span aria-hidden="true" className="text-slate-400">
+            {active ? (sort.direction === 'desc' ? '↓' : '↑') : '↕'}
+          </span>
+        </button>
+        <TechnicalTerm technical={technical} info={info} />
+      </span>
     </th>
+  );
+}
+
+/** The only visual cue that a lane row is expandable beyond the hover state — a first-time
+ * viewer shouldn't have to guess that a table row is clickable. */
+function Chevron({ expanded }: { expanded: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 12 12"
+      className={`h-3 w-3 shrink-0 text-slate-400 transition-transform ${expanded ? 'rotate-90' : ''}`}
+    >
+      <path d="M4 2l4 4-4 4" fill="none" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
   );
 }
 
@@ -389,45 +533,63 @@ function Td({
   );
 }
 
-function LaneDerivation({ lane }: { lane: LaneReportRow }) {
+function LaneDerivation({
+  lane,
+  routingEngineVersion,
+}: {
+  lane: LaneReportRow;
+  routingEngineVersion: string | undefined;
+}) {
   return (
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
-      <DerivationItem
-        label="Empty km"
-        formula={`${formatNumber(lane.distanceKm, 1)} km × ${lane.probableEmptyTrips} trips`}
-        value={`${formatNumber(lane.emptyKm)} km`}
-      />
-      <DerivationItem
-        label="Diesel cost"
-        formula={`${formatNumber(lane.emptyKm)} km × consumption × price`}
-        value={`€${formatNumber(lane.emptyDieselCostEur)}`}
-      />
-      <DerivationItem
-        label="WTT"
-        formula={`${formatNumber(lane.emptyKm)} km × consumption × WTT factor`}
-        value={`${formatNumber(lane.wellToTankGrams / 1_000, 1)} kg`}
-      />
-      <DerivationItem
-        label="TTW"
-        formula={`${formatNumber(lane.emptyKm)} km × consumption × TTW factor`}
-        value={`${formatNumber(lane.tankToWheelGrams / 1_000, 1)} kg`}
-      />
-      <DerivationItem
-        label="WTW"
-        formula="WTT + TTW"
-        value={`${formatNumber(lane.wellToWheelGrams / 1_000, 1)} kg`}
-      />
-      <DerivationItem
-        label="Assumed vehicle"
-        formula="majority equipment type on this lane"
-        value={lane.assumedVehicleCategory}
-      />
-      <DerivationItem
-        label="Confidence"
-        formula={`${lane.movementsObserved} movement${lane.movementsObserved === 1 ? '' : 's'} observed`}
-        value={lane.confidenceGrade}
-      />
-    </dl>
+    <div>
+      {/* Plain-language first, technical trace after — CLAUDE.md still requires every input,
+          factor-set version, and routing source to be visible; this only adds a sentence
+          above them, it removes nothing. */}
+      <p className="mb-3 text-body text-slate-700">
+        This number comes from {lane.movementsObserved} observed movement
+        {lane.movementsObserved === 1 ? '' : 's'} on this lane, routed using{' '}
+        {routingEngineVersion ?? 'the configured routing engine'}, assuming{' '}
+        {indefiniteArticleFor(lane.assumedVehicleCategory)} {lane.assumedVehicleCategory} truck ran
+        the {formatNumber(lane.emptyKm)} km empty return leg.
+      </p>
+      <dl className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
+        <DerivationItem
+          label="Empty km"
+          formula={`${formatNumber(lane.distanceKm, 1)} km × ${lane.probableEmptyTrips} trips`}
+          value={`${formatNumber(lane.emptyKm)} km`}
+        />
+        <DerivationItem
+          label="Diesel cost"
+          formula={`${formatNumber(lane.emptyKm)} km × consumption × price`}
+          value={`€${formatNumber(lane.emptyDieselCostEur)}`}
+        />
+        <DerivationItem
+          label="WTT"
+          formula={`${formatNumber(lane.emptyKm)} km × consumption × WTT factor`}
+          value={`${formatNumber(lane.wellToTankGrams / 1_000, 1)} kg`}
+        />
+        <DerivationItem
+          label="TTW"
+          formula={`${formatNumber(lane.emptyKm)} km × consumption × TTW factor`}
+          value={`${formatNumber(lane.tankToWheelGrams / 1_000, 1)} kg`}
+        />
+        <DerivationItem
+          label="WTW"
+          formula="WTT + TTW"
+          value={`${formatNumber(lane.wellToWheelGrams / 1_000, 1)} kg`}
+        />
+        <DerivationItem
+          label="Assumed vehicle"
+          formula="majority equipment type on this lane"
+          value={lane.assumedVehicleCategory}
+        />
+        <DerivationItem
+          label="Confidence"
+          formula={`${lane.movementsObserved} movement${lane.movementsObserved === 1 ? '' : 's'} observed`}
+          value={lane.confidenceGrade}
+        />
+      </dl>
+    </div>
   );
 }
 

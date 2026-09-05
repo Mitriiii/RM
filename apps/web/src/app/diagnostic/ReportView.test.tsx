@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react';
 import { fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import type { DiagnosticReport } from '@/lib/diagnostic/report';
+import { MODELLED_MIN_MOVEMENTS_OBSERVED, type DiagnosticReport } from '@/lib/diagnostic/report';
 import { ReportView } from './ReportView';
 
 /**
@@ -55,6 +55,10 @@ function renderReport(report: DiagnosticReport = FIXTURE_REPORT) {
   );
 }
 
+function clickLane(name: string | RegExp) {
+  fireEvent.click(screen.getAllByText(name)[0]!);
+}
+
 describe('ReportView', () => {
   it('renders the routing engine and the summary totals', () => {
     renderReport();
@@ -75,11 +79,11 @@ describe('ReportView', () => {
 
   it('renders the lane row with movements observed, distance, empty km, and WTT/TTW/WTW', () => {
     renderReport();
-    expect(screen.getByText(/madrid ↔ zaragoza/)).toBeInTheDocument();
+    expect(screen.getAllByText(/madrid ↔ zaragoza/).length).toBeGreaterThan(0);
     expect(screen.getByText('300 km')).toBeInTheDocument();
     expect(screen.getByText('200.0 kg')).toBeInTheDocument(); // WTT
     expect(screen.getByText('800.0 kg')).toBeInTheDocument(); // TTW
-    expect(screen.getByText('1,000.0 kg')).toBeInTheDocument(); // WTW
+    expect(screen.getAllByText('1,000.0 kg').length).toBeGreaterThan(0); // WTW
     expect(screen.getByText('Default')).toBeInTheDocument(); // confidence badge
   });
 
@@ -87,7 +91,7 @@ describe('ReportView', () => {
     renderReport();
     expect(screen.queryByText(/WTT \+ TTW/)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByText(/madrid ↔ zaragoza/));
+    clickLane(/madrid ↔ zaragoza/);
 
     expect(screen.getByText('WTT + TTW')).toBeInTheDocument();
     expect(screen.getByText(/majority equipment type on this lane/)).toBeInTheDocument();
@@ -126,12 +130,14 @@ describe('ReportView', () => {
 
     const rows = screen.getAllByRole('row');
     // Default sort is emptyKm descending: the 900km lane (madrid) should be first.
-    expect(within(rows[1]!).getByText(/madrid ↔ zaragoza/)).toBeInTheDocument();
+    expect(within(rows[1]!).getAllByText(/madrid ↔ zaragoza/).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: /empty km/i }));
     const rowsAfterSort = screen.getAllByRole('row');
     // Same column clicked again reverses to ascending: the 100km lane should now be first.
-    expect(within(rowsAfterSort[1]!).getByText(/barcelona ↔ valencia/)).toBeInTheDocument();
+    expect(within(rowsAfterSort[1]!).getAllByText(/barcelona ↔ valencia/).length).toBeGreaterThan(
+      0,
+    );
   });
 
   it('calls onStartOver when the "Start over" button is clicked', () => {
@@ -146,5 +152,79 @@ describe('ReportView', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Start over' }));
     expect(onStartOver).toHaveBeenCalledOnce();
+  });
+
+  describe('plain-language layer (Session 6.7)', () => {
+    it('derives the plain-language headline from the exact same totals as the technical summary row, never a second calculation', () => {
+      renderReport();
+      const headline = screen.getByTestId('report-headline');
+      // Same figures the dense technical summary row shows for totalEmptyKm and
+      // totalEmptyDieselCostEur — proving there is one source of truth, not two restatements
+      // that could quietly drift apart.
+      expect(within(headline).getByText('900 km')).toBeInTheDocument();
+      expect(within(headline).getByText('€450')).toBeInTheDocument();
+      // totalWellToWheelGrams (1_000_000 g) expressed in kg — the same total the lane row's
+      // WTW column shows in kg, just a different unit than the tonnes used in the dense row.
+      expect(within(headline).getByText('1,000.0 kg')).toBeInTheDocument();
+    });
+
+    it('does not render the plain-language headline when there are no lanes (the dedicated empty state covers that case)', () => {
+      renderReport({ ...FIXTURE_REPORT, lanes: [] });
+      expect(screen.queryByTestId('report-headline')).not.toBeInTheDocument();
+    });
+
+    it('keeps the technical WTT/TTW/WTW column terms visible alongside plain-language labels', () => {
+      renderReport();
+      expect(screen.getByText('Fuel production')).toBeInTheDocument();
+      expect(screen.getByText('(WTT)')).toBeInTheDocument();
+      expect(screen.getByText('Combustion')).toBeInTheDocument();
+      expect(screen.getByText('(TTW)')).toBeInTheDocument();
+      expect(screen.getByText('Total CO2e')).toBeInTheDocument();
+      expect(screen.getByText('(WTW)')).toBeInTheDocument();
+    });
+
+    it('explains well-to-wheel in plain language on demand, closed by default', () => {
+      renderReport();
+      expect(
+        screen.queryByText(/fuel production plus combustion combined/),
+      ).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'What is well-to-wheel CO2e?' }));
+
+      expect(screen.getByText(/fuel production plus combustion combined/)).toBeInTheDocument();
+    });
+
+    it("explains a lane's confidence grade using the real movements-observed count and the real threshold constant, not a separately hand-written claim", () => {
+      renderReport();
+      fireEvent.click(
+        screen.getByRole('button', {
+          name: 'What does this confidence grade mean for madrid to zaragoza?',
+        }),
+      );
+
+      // The fixture lane has 3 observed movements, below MODELLED_MIN_MOVEMENTS_OBSERVED (5) —
+      // both numbers must appear, sourced from the lane data and the exported threshold.
+      expect(screen.getByText(/only 3 observed movements/)).toBeInTheDocument();
+      expect(
+        screen.getByText(new RegExp(`below the ${MODELLED_MIN_MOVEMENTS_OBSERVED}-movement`)),
+      ).toBeInTheDocument();
+    });
+
+    it('shows a visible expand affordance on lane rows so the drill-down is discoverable without hovering', () => {
+      renderReport();
+      expect(screen.getByText(/Click a lane to see the full calculation/)).toBeInTheDocument();
+    });
+
+    it('leads an expanded derivation with a plain-language sentence naming the real movement count and routing engine, ahead of the technical trace', () => {
+      renderReport();
+      clickLane(/madrid ↔ zaragoza/);
+
+      expect(
+        screen.getByText(/This number comes from 3 observed movements on this lane/),
+      ).toBeInTheDocument();
+      expect(screen.getAllByText(/osrm-test-fixture-TEST_ONLY/).length).toBeGreaterThan(0);
+      // The technical trace must still be present in full underneath — nothing removed.
+      expect(screen.getByText('WTT + TTW')).toBeInTheDocument();
+    });
   });
 });

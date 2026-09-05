@@ -31,6 +31,26 @@ export function Prose({ children, className = '' }: { children: ReactNode; class
   return <p className={`text-body text-slate-600 ${className}`}>{children}</p>;
 }
 
+/** A single plain-language restatement of numbers already shown elsewhere in their full,
+ * technical form — never a substitute for them. Sized between SectionTitle and body text so
+ * it reads as the sentence a first-time viewer meets before the dense table, not as another
+ * stat card. */
+export function Lede({
+  children,
+  className = '',
+  testId,
+}: {
+  children: ReactNode;
+  className?: string;
+  testId?: string;
+}) {
+  return (
+    <p data-testid={testId} className={`text-subtitle text-slate-800 ${className}`}>
+      {children}
+    </p>
+  );
+}
+
 /** Every numeric value in the app renders through this — tabular figures, monospace,
  * so digits align in a column the way CLAUDE.md's "measuring instrument" direction asks. */
 export function DataValue({
