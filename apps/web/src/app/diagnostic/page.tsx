@@ -7,7 +7,9 @@ import { Caption, Label, PageTitle, Prose, SectionTitle } from '@/components/ui/
 import { UploadDropzone } from '@/components/ui/UploadDropzone';
 import { applyColumnMapping, guessColumnMapping } from '@/lib/diagnostic/columnMapping';
 import {
+  DEFAULT_DIESEL_PRICE_CAPTURED_ON,
   DEFAULT_DIESEL_PRICE_EUR_PER_LITRE,
+  DEFAULT_DIESEL_PRICE_SOURCE,
   DEFAULT_DIESEL_TTW_KG_CO2E_PER_LITRE,
   DEFAULT_DIESEL_WTT_KG_CO2E_PER_LITRE,
   DEFAULT_UNLADEN_DIESEL_CONSUMPTION_L_PER_KM,
@@ -295,7 +297,7 @@ export default function DiagnosticPage() {
               label="Diesel price (€/L)"
               value={dieselPrice}
               onChange={setDieselPrice}
-              note="Representative Spanish pump price — check the current price."
+              note={`${DEFAULT_DIESEL_PRICE_SOURCE}, captured ${DEFAULT_DIESEL_PRICE_CAPTURED_ON} — edit this.`}
             />
             <NumberField
               label="Rigid truck: L/km empty"

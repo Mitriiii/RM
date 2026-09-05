@@ -78,6 +78,13 @@ describe('createFactorSet', () => {
     }).toThrow(TypeError);
   });
 
+  it('lists every entry it was constructed with, so a caller can enumerate the real registry instead of hand-writing a copy', () => {
+    const entries = buildTestFactorSet().list();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.toc).toEqual(KNOWN_TOC);
+    expect(entries[0]?.intensity.wellToWheel).toBe(100);
+  });
+
   it('two factor sets with different ids never share factors, even with identical TOC keys', () => {
     const other = createFactorSet(
       { source: 'TEST_ONLY', version: '1', effectiveDate: '2021-01-01' },

@@ -16,6 +16,10 @@ export interface FactorSet {
   readonly gwpSet: string;
   readonly compositeKey: string;
   lookup(toc: TransportOperationCategoryKey): FactorLookupResult;
+  /** Every entry this factor set holds — so a caller (e.g. a UI populating a dropdown of
+   * available equipment types) can read what's actually registered instead of hand-writing a
+   * list that could silently drift out of sync with the real registry. */
+  list(): readonly FactorSetEntry[];
 }
 
 /**
@@ -31,7 +35,8 @@ export function createFactorSet(
 ): FactorSet {
   const frozenId = Object.freeze({ ...id });
   const index = new Map<string, EmissionIntensity>();
-  for (const entry of entries) {
+  const frozenEntries = entries.map((entry) => Object.freeze({ ...entry }));
+  for (const entry of frozenEntries) {
     index.set(tocKeyToString(entry.toc), entry.intensity);
   }
 
@@ -45,6 +50,9 @@ export function createFactorSet(
         return { ok: false, error: new MissingFactorError(frozenId, toc) };
       }
       return { ok: true, intensity };
+    },
+    list(): readonly FactorSetEntry[] {
+      return frozenEntries;
     },
   });
 }

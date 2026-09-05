@@ -60,6 +60,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@freyo/factors':
+        specifier: workspace:*
+        version: link:../../packages/factors
       '@freyo/routing':
         specifier: workspace:*
         version: link:../../packages/routing

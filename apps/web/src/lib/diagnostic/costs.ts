@@ -28,9 +28,17 @@ export const DEFAULT_UNLADEN_DIESEL_CONSUMPTION_L_PER_KM: Readonly<
   articulated: 0.33,
 };
 
-/** A representative Spanish diesel pump price — check the current price; this moves with
- * the market and is not fetched live. */
-export const DEFAULT_DIESEL_PRICE_EUR_PER_LITRE = 1.55;
+/**
+ * A representative Spanish diesel pump price — €1.77/L, Spain national average, source:
+ * GlobalPetrolPrices.com, captured 31 August 2026. This is a starting point, not a live feed:
+ * diesel moves week to week, this constant does not, and both the diagnostic and the Instant
+ * Impact Calculator surface it as an editable field with this source and date shown, never as
+ * an authoritative live price. TODO: revisit and re-cite this figure periodically (e.g. every
+ * few months) — it will otherwise silently go stale.
+ */
+export const DEFAULT_DIESEL_PRICE_EUR_PER_LITRE = 1.77;
+export const DEFAULT_DIESEL_PRICE_SOURCE = 'GlobalPetrolPrices.com, Spain average';
+export const DEFAULT_DIESEL_PRICE_CAPTURED_ON = '2026-08-31';
 
 /**
  * Diesel's well-to-wheel emission factor, split into its two components per CLAUDE.md's

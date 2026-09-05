@@ -1,0 +1,32 @@
+{
+  "id": {
+    "source": "uk-desnz-ghg-conversion-factors",
+    "version": "2026-flat-file-v1.2",
+    "effectiveDate": "2026-07-10"
+  },
+  "gwpSet": "IPCC-AR5-GWP100",
+  "factors": [
+    {
+      "toc": {
+        "vehicleType": "rigid-12t",
+        "fuelType": "diesel",
+        "loadProfile": "average",
+        "region": "ES"
+      },
+      "wellToTankGramsPerTonneKm": 43.32,
+      "tankToWheelGramsPerTonneKm": 199.47,
+      "wellToWheelGramsPerTonneKm": 242.79
+    },
+    {
+      "toc": {
+        "vehicleType": "articulated-40t",
+        "fuelType": "diesel",
+        "loadProfile": "average",
+        "region": "ES"
+      },
+      "wellToTankGramsPerTonneKm": 18.23,
+      "tankToWheelGramsPerTonneKm": 79.26,
+      "wellToWheelGramsPerTonneKm": 97.49
+    }
+  ]
+}

@@ -7,8 +7,7 @@ observed a real gap: Session 6.6 made the report screen dense, correct, and full
 assumed a viewer who already knows what WTT/TTW/WTW mean, already trusts a sortable technical
 table as the first thing to read, and already knows a table row is clickable. That's a product
 gap, not rigour — CLAUDE.md's "measuring instrument, not a marketing site" rule protects the
-credibility of the numbers, it doesn't require that a first-time viewer already speak ISO
-14083. This session adds a simple layer on top of the existing technical one, changing nothing
+credibility of the numbers, it doesn't require that a first-time viewer already speak ISO 14083. This session adds a simple layer on top of the existing technical one, changing nothing
 about what data is shown or how it's computed.
 
 ## Decisions

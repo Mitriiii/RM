@@ -23,8 +23,20 @@ export function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: st
   );
 }
 
-export function Caption({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <p className={`text-caption text-slate-500 ${className}`}>{children}</p>;
+export function Caption({
+  children,
+  className = '',
+  id,
+}: {
+  children: ReactNode;
+  className?: string;
+  id?: string;
+}) {
+  return (
+    <p id={id} className={`text-caption text-slate-500 ${className}`}>
+      {children}
+    </p>
+  );
 }
 
 export function Prose({ children, className = '' }: { children: ReactNode; className?: string }) {
