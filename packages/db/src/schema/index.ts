@@ -6,6 +6,7 @@ export * from './emissionRecords.js';
 export * from './factorSets.js';
 export * from './legs.js';
 export * from './members.js';
+export * from './memberVisibilityBlocks.js';
 export * from './movementLegs.js';
 export * from './movements.js';
 export * from './pairings.js';

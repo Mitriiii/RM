@@ -27,6 +27,7 @@
   "references": [
     { "path": "../../packages/shared" },
     { "path": "../../packages/routing" },
-    { "path": "../../packages/factors" }
+    { "path": "../../packages/factors" },
+    { "path": "../../packages/db" }
   ]
 }

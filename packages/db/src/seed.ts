@@ -386,20 +386,26 @@ async function main(): Promise<void> {
     {
       memberId: carrierAragon.id,
       originSiteId: barcelona.id,
+      originCity: 'Barcelona',
       destinationSiteId: madrid.id,
+      destinationCity: 'Madrid',
       vehicleType: 'articulated-40t',
       availableFrom: hoursFromNow(20),
       availableUntil: hoursFromNow(30),
       capacityKg: '18000',
+      capacityLoadingMetres: '13.6',
     },
     {
       memberId: carrierTuria.id,
       originSiteId: valencia.id,
+      originCity: 'Valencia',
       destinationSiteId: madrid.id,
+      destinationCity: 'Madrid',
       vehicleType: 'articulated-40t',
       availableFrom: hoursFromNow(12),
       availableUntil: hoursFromNow(20),
       capacityKg: '20000',
+      capacityLoadingMetres: '13.6',
     },
   ]);
 

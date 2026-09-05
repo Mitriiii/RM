@@ -148,11 +148,14 @@ describe('intentional exceptions to per-tenant isolation', () => {
         .values({
           memberId: memberA.id,
           originSiteId: siteA1.id,
+          originCity: 'Test Origin',
           destinationSiteId: siteA2.id,
+          destinationCity: 'Test Destination',
           vehicleType: 'articulated-40t',
           availableFrom: now,
           availableUntil: now,
           capacityKg: '20000',
+          capacityLoadingMetres: '13.6',
         })
         .returning(),
     );

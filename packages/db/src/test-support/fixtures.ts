@@ -1,5 +1,12 @@
 import type { Database } from '../client.js';
-import { legs, members, movementLegs, movements, sites } from '../schema/index.js';
+import {
+  capacityPostings,
+  legs,
+  members,
+  movementLegs,
+  movements,
+  sites,
+} from '../schema/index.js';
 
 type MemberKind = 'shipper' | 'carrier' | '3pl';
 
@@ -12,14 +19,19 @@ export async function createMember(db: Database, kind: MemberKind = 'shipper') {
   return member;
 }
 
-export async function createSite(db: Database, memberId: string, name = 'Test Site') {
+export async function createSite(
+  db: Database,
+  memberId: string,
+  name = 'Test Site',
+  city = 'Madrid',
+) {
   const [site] = await db
     .insert(sites)
     .values({
       memberId,
       name,
       addressLine: 'Calle Test 1',
-      city: 'Madrid',
+      city,
       countryCode: 'ES',
       location: { x: -3.7038, y: 40.4168 },
     })
@@ -76,6 +88,42 @@ export async function createLeg(
     .returning();
   if (!leg) throw new Error('leg insert returned no row');
   return leg;
+}
+
+export async function seedCapacityPosting(
+  db: Database,
+  memberId: string,
+  originSiteId: string,
+  destinationSiteId: string,
+  overrides: Partial<{
+    availableFrom: Date;
+    availableUntil: Date;
+    status: 'open' | 'withdrawn' | 'filled';
+    originCity: string;
+    destinationCity: string;
+  }> = {},
+) {
+  const now = new Date();
+  const [posting] = await db
+    .insert(capacityPostings)
+    .values({
+      memberId,
+      originSiteId,
+      originCity: overrides.originCity ?? 'Test Origin',
+      destinationSiteId,
+      destinationCity: overrides.destinationCity ?? 'Test Destination',
+      vehicleType: 'articulated-40t',
+      temperatureClass: 'ambient',
+      adrClasses: [],
+      availableFrom: overrides.availableFrom ?? now,
+      availableUntil: overrides.availableUntil ?? now,
+      capacityKg: '20000',
+      capacityLoadingMetres: '13.6',
+      status: overrides.status ?? 'open',
+    })
+    .returning();
+  if (!posting) throw new Error('capacity posting insert returned no row');
+  return posting;
 }
 
 export async function createMovementLeg(

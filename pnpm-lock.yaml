@@ -60,6 +60,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@freyo/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@freyo/factors':
         specifier: workspace:*
         version: link:../../packages/factors
