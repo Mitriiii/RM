@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-diagnostic",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@freyo/web", "run", "dev"],
+      "port": 3000
+    }
+  ]
+}

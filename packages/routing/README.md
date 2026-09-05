@@ -53,6 +53,15 @@ const cached = withDistanceCache(client, createInMemoryDistanceCache(), routingE
 (`apps/api`/`packages/db` should use `PostgresDistanceCache` from `@freyo/db` instead of the
 in-memory cache — see that package's README.)
 
+## Quicker local dev: OSRM's public demo server
+
+Before setting up Docker, `apps/web/.env.local` points the empty-kilometre diagnostic
+(kickoff Session 6) at `https://router.project-osrm.org` — OSRM's own public demo server.
+It's real routing, not an estimate, so it's a legitimate way to exercise the full pipeline
+without local infrastructure. It is rate-limited, has no uptime guarantee, and only serves
+the `car` profile — never point production traffic at it. Use the self-hosted setup above
+for anything beyond casual local dev.
+
 ## Naming a `routingEngineVersion`
 
 OSRM's HTTP API has no endpoint that reports its own version or the map data's vintage.

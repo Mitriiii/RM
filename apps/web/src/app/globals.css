@@ -10,3 +10,12 @@
 body {
   font-variant-numeric: tabular-nums;
 }
+
+@media print {
+  body {
+    margin: 0;
+  }
+  @page {
+    margin: 1.5cm;
+  }
+}
