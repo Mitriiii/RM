@@ -1,6 +1,6 @@
 import type { RoutingClient } from '@freyo/routing';
-import { kilometres } from '@freyo/shared';
-import { estimateEmptyLegCO2e, estimateEmptyLegDieselCostEur } from './costs';
+import { gramsCO2e, kilometres, type GramsCO2e } from '@freyo/shared';
+import { estimateEmptyLegDieselCostEur, estimateEmptyLegEmissions } from './costs';
 import { detectEmptyLegs, sortedPair, type EmptyDirection } from './emptyLegDetection';
 import { normalizeEquipmentType, type VehicleCategory } from './equipment';
 import { resolveCity } from './gazetteer';
@@ -12,7 +12,21 @@ export interface DiagnosticReportInputs {
   readonly routingProfile: string;
   readonly dieselPriceEurPerLitre: number;
   readonly dieselConsumptionLPerKm: Readonly<Record<VehicleCategory, number>>;
-  readonly dieselWtwKgCO2ePerLitre: number;
+  readonly dieselWttKgCO2ePerLitre: number;
+  readonly dieselTtwKgCO2ePerLitre: number;
+}
+
+/**
+ * Nothing in this diagnostic is measured, so "primary" never applies here — but a lane
+ * inferred from more observed movements is a more reliable pattern than one just above the
+ * minimum threshold. CLAUDE.md's "never show a figure without its data-quality grade"
+ * applies to this heuristic estimate the same way it applies to a measured one.
+ */
+export type LaneConfidenceGrade = 'modelled' | 'default';
+const MODELLED_MIN_MOVEMENTS_OBSERVED = 5;
+
+function laneConfidenceGrade(movementsObserved: number): LaneConfidenceGrade {
+  return movementsObserved >= MODELLED_MIN_MOVEMENTS_OBSERVED ? 'modelled' : 'default';
 }
 
 export interface LaneReportRow {
@@ -20,20 +34,35 @@ export interface LaneReportRow {
   readonly cityB: string;
   readonly tripsAtoB: number;
   readonly tripsBtoA: number;
+  readonly movementsObserved: number;
   readonly emptyDirection: EmptyDirection;
   readonly probableEmptyTrips: number;
   readonly distanceKm: number;
   readonly assumedVehicleCategory: VehicleCategory;
   readonly emptyKm: number;
   readonly emptyDieselCostEur: number;
-  readonly emptyCO2eGrams: number;
+  readonly wellToTankGrams: number;
+  readonly tankToWheelGrams: number;
+  readonly wellToWheelGrams: number;
+  readonly confidenceGrade: LaneConfidenceGrade;
+}
+
+/** A lane with too few recorded movements to infer an empty-return pattern from — reported
+ * back honestly rather than silently folded into (or silently dropped from) the main table. */
+export interface InsufficientDataLane {
+  readonly cityA: string;
+  readonly cityB: string;
+  readonly movementsObserved: number;
 }
 
 export interface DiagnosticReport {
   readonly lanes: readonly LaneReportRow[];
+  readonly insufficientDataLanes: readonly InsufficientDataLane[];
   readonly totalEmptyKm: number;
   readonly totalEmptyDieselCostEur: number;
-  readonly totalEmptyCO2eGrams: number;
+  readonly totalWellToTankGrams: GramsCO2e;
+  readonly totalTankToWheelGrams: GramsCO2e;
+  readonly totalWellToWheelGrams: GramsCO2e;
   readonly issues: readonly RowError[];
   readonly routingEngineVersion: string | undefined;
 }
@@ -56,9 +85,10 @@ function laneKey(cityA: string, cityB: string): string {
  * Turns validated shipment rows into the empty-kilometre diagnostic report: resolves each
  * row's city text and equipment type (reporting anything unresolvable as an issue rather
  * than skipping it silently), infers probable empty return legs per lane, routes each lane
- * that needs one, and estimates that empty running's diesel cost and CO2e. Routes are
- * fetched sequentially, not in parallel — see packages/routing/README.md on not hammering a
- * shared or public routing engine with concurrent requests.
+ * that needs one, and estimates that empty running's diesel cost and CO2e — reported as
+ * well-to-tank, tank-to-wheel, and well-to-wheel, per CLAUDE.md's reporting requirement.
+ * Routes are fetched sequentially, not in parallel — see packages/routing/README.md on not
+ * hammering a shared or public routing engine with concurrent requests.
  */
 export async function buildDiagnosticReport(
   inputs: DiagnosticReportInputs,
@@ -110,12 +140,23 @@ export async function buildDiagnosticReport(
   }
 
   const lanes: LaneReportRow[] = [];
+  const insufficientDataLanes: InsufficientDataLane[] = [];
   let totalEmptyKm = 0;
   let totalEmptyDieselCostEur = 0;
-  let totalEmptyCO2eGrams = 0;
+  let totalWellToTankGrams = 0;
+  let totalTankToWheelGrams = 0;
+  let totalWellToWheelGrams = 0;
   let routingEngineVersion: string | undefined;
 
   for (const lane of laneStats) {
+    if (!lane.hasSufficientData) {
+      insufficientDataLanes.push({
+        cityA: lane.cityA,
+        cityB: lane.cityB,
+        movementsObserved: lane.totalTrips,
+      });
+      continue;
+    }
     if (lane.probableEmptyTrips === 0) continue;
 
     const originResolved = resolveCity(lane.cityA);
@@ -138,10 +179,11 @@ export async function buildDiagnosticReport(
       consumptionLitresPerKm: consumptionLPerKm,
       priceEurPerLitre: inputs.dieselPriceEurPerLitre,
     });
-    const emptyCO2eGrams = estimateEmptyLegCO2e(
+    const emissions = estimateEmptyLegEmissions(
       kilometres(emptyKm),
       consumptionLPerKm,
-      inputs.dieselWtwKgCO2ePerLitre,
+      inputs.dieselWttKgCO2ePerLitre,
+      inputs.dieselTtwKgCO2ePerLitre,
     );
 
     lanes.push({
@@ -149,27 +191,36 @@ export async function buildDiagnosticReport(
       cityB: lane.cityB,
       tripsAtoB: lane.tripsAtoB,
       tripsBtoA: lane.tripsBtoA,
+      movementsObserved: lane.totalTrips,
       emptyDirection: lane.emptyDirection,
       probableEmptyTrips: lane.probableEmptyTrips,
       distanceKm: routed.distance,
       assumedVehicleCategory: category,
       emptyKm,
       emptyDieselCostEur,
-      emptyCO2eGrams,
+      wellToTankGrams: emissions.wellToTankGrams,
+      tankToWheelGrams: emissions.tankToWheelGrams,
+      wellToWheelGrams: emissions.wellToWheelGrams,
+      confidenceGrade: laneConfidenceGrade(lane.totalTrips),
     });
 
     totalEmptyKm += emptyKm;
     totalEmptyDieselCostEur += emptyDieselCostEur;
-    totalEmptyCO2eGrams += emptyCO2eGrams;
+    totalWellToTankGrams += emissions.wellToTankGrams;
+    totalTankToWheelGrams += emissions.tankToWheelGrams;
+    totalWellToWheelGrams += emissions.wellToWheelGrams;
   }
 
   lanes.sort((a, b) => b.emptyKm - a.emptyKm);
 
   return {
     lanes,
+    insufficientDataLanes,
     totalEmptyKm,
     totalEmptyDieselCostEur,
-    totalEmptyCO2eGrams,
+    totalWellToTankGrams: gramsCO2e(totalWellToTankGrams),
+    totalTankToWheelGrams: gramsCO2e(totalTankToWheelGrams),
+    totalWellToWheelGrams: gramsCO2e(totalWellToWheelGrams),
     issues,
     routingEngineVersion,
   };

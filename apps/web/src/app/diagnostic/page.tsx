@@ -8,7 +8,8 @@ import { UploadDropzone } from '@/components/ui/UploadDropzone';
 import { applyColumnMapping, guessColumnMapping } from '@/lib/diagnostic/columnMapping';
 import {
   DEFAULT_DIESEL_PRICE_EUR_PER_LITRE,
-  DEFAULT_DIESEL_WTW_KG_CO2E_PER_LITRE,
+  DEFAULT_DIESEL_TTW_KG_CO2E_PER_LITRE,
+  DEFAULT_DIESEL_WTT_KG_CO2E_PER_LITRE,
   DEFAULT_UNLADEN_DIESEL_CONSUMPTION_L_PER_KM,
   ETS2_DEFAULT_CARBON_PRICES_EUR_PER_TONNE,
 } from '@/lib/diagnostic/costs';
@@ -53,7 +54,8 @@ export default function DiagnosticPage() {
   const [dieselConsumption, setDieselConsumption] = useState<Record<VehicleCategory, number>>({
     ...DEFAULT_UNLADEN_DIESEL_CONSUMPTION_L_PER_KM,
   });
-  const [dieselWtwFactor, setDieselWtwFactor] = useState(DEFAULT_DIESEL_WTW_KG_CO2E_PER_LITRE);
+  const [dieselWttFactor, setDieselWttFactor] = useState(DEFAULT_DIESEL_WTT_KG_CO2E_PER_LITRE);
+  const [dieselTtwFactor, setDieselTtwFactor] = useState(DEFAULT_DIESEL_TTW_KG_CO2E_PER_LITRE);
   const [carbonPrices, setCarbonPrices] = useState<readonly number[]>(
     ETS2_DEFAULT_CARBON_PRICES_EUR_PER_TONNE,
   );
@@ -93,7 +95,8 @@ export default function DiagnosticPage() {
         rows: mappedRows,
         dieselPriceEurPerLitre: dieselPrice,
         dieselConsumptionLPerKm: dieselConsumption,
-        dieselWtwKgCO2ePerLitre: dieselWtwFactor,
+        dieselWttKgCO2ePerLitre: dieselWttFactor,
+        dieselTtwKgCO2ePerLitre: dieselTtwFactor,
       });
       setResult(diagnosticResult);
       if (diagnosticResult.ok) setStep('report');
@@ -287,7 +290,7 @@ export default function DiagnosticPage() {
             {mappedRows.length} row{mappedRows.length === 1 ? '' : 's'} ready to process.
           </Caption>
 
-          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3">
             <NumberField
               label="Diesel price (€/L)"
               value={dieselPrice}
@@ -309,12 +312,22 @@ export default function DiagnosticPage() {
               note="Typical unladen consumption; adjust for your fleet."
             />
             <NumberField
-              label="Diesel WTW factor (kgCO2e/L)"
-              value={dieselWtwFactor}
-              onChange={setDieselWtwFactor}
-              note="Combustion + upstream production; a published approximation."
+              label="Diesel WTT factor (kgCO2e/L)"
+              value={dieselWttFactor}
+              onChange={setDieselWttFactor}
+              note="Upstream fuel production and distribution — a published approximation."
+            />
+            <NumberField
+              label="Diesel TTW factor (kgCO2e/L)"
+              value={dieselTtwFactor}
+              onChange={setDieselTtwFactor}
+              note="Tank-to-wheel combustion — a published approximation."
             />
           </div>
+          <Caption className="mt-2">
+            Well-to-wheel is always well-to-tank plus tank-to-wheel — it isn&apos;t a separate
+            adjustable input, so it can never drift from what these two say.
+          </Caption>
 
           {result && !result.ok && <p className="mt-4 text-body text-red-700">{result.message}</p>}
 

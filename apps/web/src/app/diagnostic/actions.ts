@@ -9,7 +9,8 @@ export interface RunDiagnosticInput {
   readonly rows: readonly MappedShipmentRow[];
   readonly dieselPriceEurPerLitre: number;
   readonly dieselConsumptionLPerKm: Readonly<Record<VehicleCategory, number>>;
-  readonly dieselWtwKgCO2ePerLitre: number;
+  readonly dieselWttKgCO2ePerLitre: number;
+  readonly dieselTtwKgCO2ePerLitre: number;
 }
 
 export type RunDiagnosticResult =
@@ -47,7 +48,8 @@ export async function runDiagnostic(input: RunDiagnosticInput): Promise<RunDiagn
       routingProfile: 'car',
       dieselPriceEurPerLitre: input.dieselPriceEurPerLitre,
       dieselConsumptionLPerKm: input.dieselConsumptionLPerKm,
-      dieselWtwKgCO2ePerLitre: input.dieselWtwKgCO2ePerLitre,
+      dieselWttKgCO2ePerLitre: input.dieselWttKgCO2ePerLitre,
+      dieselTtwKgCO2ePerLitre: input.dieselTtwKgCO2ePerLitre,
     });
     return { ok: true, report };
   } catch (error) {

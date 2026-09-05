@@ -22,7 +22,7 @@
     },
     "resolveJsonModule": true
   },
-  "include": ["next-env.d.ts", "src", ".next/types/**/*.ts"],
+  "include": ["next-env.d.ts", "src", ".next/types/**/*.ts", "vitest.setup.ts"],
   "exclude": ["node_modules"],
   "references": [{ "path": "../../packages/shared" }, { "path": "../../packages/routing" }]
 }

@@ -3,7 +3,8 @@ import { kilometres } from '@freyo/shared';
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_DIESEL_PRICE_EUR_PER_LITRE,
-  DEFAULT_DIESEL_WTW_KG_CO2E_PER_LITRE,
+  DEFAULT_DIESEL_TTW_KG_CO2E_PER_LITRE,
+  DEFAULT_DIESEL_WTT_KG_CO2E_PER_LITRE,
   DEFAULT_UNLADEN_DIESEL_CONSUMPTION_L_PER_KM,
 } from './costs';
 import { buildDiagnosticReport } from './report';
@@ -51,7 +52,8 @@ const COST_INPUTS = {
   routingProfile: 'car',
   dieselPriceEurPerLitre: DEFAULT_DIESEL_PRICE_EUR_PER_LITRE,
   dieselConsumptionLPerKm: DEFAULT_UNLADEN_DIESEL_CONSUMPTION_L_PER_KM,
-  dieselWtwKgCO2ePerLitre: DEFAULT_DIESEL_WTW_KG_CO2E_PER_LITRE,
+  dieselWttKgCO2ePerLitre: DEFAULT_DIESEL_WTT_KG_CO2E_PER_LITRE,
+  dieselTtwKgCO2ePerLitre: DEFAULT_DIESEL_TTW_KG_CO2E_PER_LITRE,
 };
 
 describe('buildDiagnosticReport', () => {
@@ -70,7 +72,7 @@ describe('buildDiagnosticReport', () => {
     expect(report.issues).toEqual([]);
   });
 
-  it('computes empty km, diesel cost, and CO2e for an imbalanced lane', async () => {
+  it('computes empty km, diesel cost, and WTT/TTW/WTW CO2e for an imbalanced lane', async () => {
     const routingClient = fakeRoutingClient({ '-3.7038,40.4168->-0.8891,41.6488': 325 });
     const report = await buildDiagnosticReport({
       rows: [
@@ -85,12 +87,37 @@ describe('buildDiagnosticReport', () => {
     expect(report.lanes).toHaveLength(1);
     const lane = report.lanes[0]!;
     expect(lane.probableEmptyTrips).toBe(3);
+    expect(lane.movementsObserved).toBe(3);
     expect(lane.distanceKm).toBe(325);
     expect(lane.emptyKm).toBe(325 * 3);
     expect(lane.emptyDieselCostEur).toBeGreaterThan(0);
-    expect(lane.emptyCO2eGrams).toBeGreaterThan(0);
+    expect(lane.wellToTankGrams).toBeGreaterThan(0);
+    expect(lane.tankToWheelGrams).toBeGreaterThan(0);
+    expect(lane.wellToWheelGrams).toBeCloseTo(lane.wellToTankGrams + lane.tankToWheelGrams, 6);
+    expect(lane.confidenceGrade).toBe('default'); // 3 movements is below the "modelled" threshold
     expect(report.totalEmptyKm).toBe(lane.emptyKm);
+    expect(report.totalWellToWheelGrams).toBeCloseTo(
+      report.totalWellToTankGrams + report.totalTankToWheelGrams,
+      6,
+    );
     expect(report.routingEngineVersion).toBe(ROUTING_ENGINE_VERSION);
+  });
+
+  it('grades a lane with five or more observed movements as "modelled", not "default"', async () => {
+    const routingClient = fakeRoutingClient({ '-3.7038,40.4168->-0.8891,41.6488': 325 });
+    const report = await buildDiagnosticReport({
+      rows: [
+        row(1, 'Madrid', 'Zaragoza', 'Articulated'),
+        row(2, 'Madrid', 'Zaragoza', 'Articulated'),
+        row(3, 'Madrid', 'Zaragoza', 'Articulated'),
+        row(4, 'Madrid', 'Zaragoza', 'Articulated'),
+        row(5, 'Madrid', 'Zaragoza', 'Articulated'),
+      ],
+      routingClient,
+      ...COST_INPUTS,
+    });
+    expect(report.lanes[0]?.movementsObserved).toBe(5);
+    expect(report.lanes[0]?.confidenceGrade).toBe('modelled');
   });
 
   it('reports an unknown city as an issue and excludes that row from the lane calculation', async () => {
@@ -129,6 +156,23 @@ describe('buildDiagnosticReport', () => {
     expect(routingClient.callCount()).toBe(0);
   });
 
+  it('reports a lane with only one recorded movement as insufficient data, not as a probable empty leg', async () => {
+    const routingClient = fakeRoutingClient({});
+    const report = await buildDiagnosticReport({
+      rows: [row(1, 'Madrid', 'Zaragoza', 'Articulated')],
+      routingClient,
+      ...COST_INPUTS,
+    });
+    expect(report.lanes).toEqual([]);
+    expect(routingClient.callCount()).toBe(0);
+    expect(report.insufficientDataLanes).toHaveLength(1);
+    expect(report.insufficientDataLanes[0]).toMatchObject({
+      cityA: 'madrid',
+      cityB: 'zaragoza',
+      movementsObserved: 1,
+    });
+  });
+
   it('sorts lanes by empty km descending, worst lane first', async () => {
     const routingClient = fakeRoutingClient({
       '-3.7038,40.4168->-0.8891,41.6488': 325, // Madrid-Zaragoza
@@ -137,9 +181,10 @@ describe('buildDiagnosticReport', () => {
     const report = await buildDiagnosticReport({
       rows: [
         row(1, 'Madrid', 'Zaragoza', 'Articulated'),
-        row(2, 'Madrid', 'Valencia', 'Articulated'),
+        row(2, 'Madrid', 'Zaragoza', 'Articulated'),
         row(3, 'Madrid', 'Valencia', 'Articulated'),
         row(4, 'Madrid', 'Valencia', 'Articulated'),
+        row(5, 'Madrid', 'Valencia', 'Articulated'),
       ],
       routingClient,
       ...COST_INPUTS,

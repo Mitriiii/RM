@@ -59,4 +59,30 @@ describe('detectEmptyLegs', () => {
     const lanes = detectEmptyLegs(trips);
     expect(lanes).toHaveLength(2);
   });
+
+  it('reports totalTrips as the sum of both directions', () => {
+    const trips: LaneTrip[] = [
+      { origin: 'Madrid', destination: 'Zaragoza' },
+      { origin: 'Madrid', destination: 'Zaragoza' },
+      { origin: 'Zaragoza', destination: 'Madrid' },
+    ];
+    const [lane] = detectEmptyLegs(trips);
+    expect(lane?.totalTrips).toBe(3);
+  });
+
+  it('flags a lane with only one recorded movement as having insufficient data', () => {
+    const trips: LaneTrip[] = [{ origin: 'Madrid', destination: 'Zaragoza' }];
+    const [lane] = detectEmptyLegs(trips);
+    expect(lane?.totalTrips).toBe(1);
+    expect(lane?.hasSufficientData).toBe(false);
+  });
+
+  it('considers two or more recorded movements sufficient to infer a pattern from', () => {
+    const trips: LaneTrip[] = [
+      { origin: 'Madrid', destination: 'Zaragoza' },
+      { origin: 'Madrid', destination: 'Zaragoza' },
+    ];
+    const [lane] = detectEmptyLegs(trips);
+    expect(lane?.hasSufficientData).toBe(true);
+  });
 });

@@ -32,17 +32,29 @@ export const DEFAULT_UNLADEN_DIESEL_CONSUMPTION_L_PER_KM: Readonly<
  * the market and is not fetched live. */
 export const DEFAULT_DIESEL_PRICE_EUR_PER_LITRE = 1.55;
 
-/** Well-to-wheel diesel emission factor: combustion (~2.68 kgCO2/L) plus upstream well-to-
- * tank production and distribution (~0.5 kgCO2e/L) — commonly published range ~3.15-3.2
- * kgCO2e/L (e.g. UK DEFRA/BEIS-style GHG conversion factors). An approximation, not an
- * audited figure. */
-export const DEFAULT_DIESEL_WTW_KG_CO2E_PER_LITRE = 3.17;
+/**
+ * Diesel's well-to-wheel emission factor, split into its two components per CLAUDE.md's
+ * "report well-to-tank, tank-to-wheel, and well-to-wheel" rule — applied here to the
+ * diagnostic's simplified fuel-based estimate the same way it applies to the audited engine.
+ * Well-to-wheel is always the sum of these two, never an independently adjustable third
+ * number, so it can never drift from what its own components say. Commonly published range
+ * ~3.15-3.2 kgCO2e/L combined (e.g. UK DEFRA/BEIS-style GHG conversion factors) — an
+ * approximation, not an audited figure.
+ */
+export const DEFAULT_DIESEL_WTT_KG_CO2E_PER_LITRE = 0.49; // upstream production & distribution
+export const DEFAULT_DIESEL_TTW_KG_CO2E_PER_LITRE = 2.68; // combustion
 
-/** CLAUDE.md/docs/FREYO-Concept-v2.md: ETS2 allowance price pre-delay projections ran
- * roughly €40-63/tCO2e (ICAP/EEA/Transport & Environment). €0 is included so the diagnostic
- * can show "the cost case today, with zero carbon price," per the concept doc's own
- * mitigation for the risk that ETS2 slips again. */
-export const ETS2_DEFAULT_CARBON_PRICES_EUR_PER_TONNE: readonly number[] = [0, 40, 50, 63];
+/**
+ * ETS2 brings road transport fuel into EU carbon pricing from 1 January 2028. €45/tCO2e
+ * (2020-adjusted) is the system's price-containment threshold — the level at which extra
+ * allowances release if the price rises too quickly in its first two years — the closest
+ * thing to an official anchor price this market has. €63 is the upper end of pre-delay
+ * projections (ICAP/EEA/Transport & Environment); €0 is included to show the cost case with
+ * no carbon price at all, since the date has already slipped once. Every scenario here is a
+ * user-adjustable input, never a single hard-coded "the" price.
+ */
+export const ETS2_PRICE_CONTAINMENT_ANCHOR_EUR_PER_TONNE = 45;
+export const ETS2_DEFAULT_CARBON_PRICES_EUR_PER_TONNE: readonly number[] = [0, 45, 50, 63];
 
 export interface DieselCostInputs {
   readonly consumptionLitresPerKm: number;
@@ -56,14 +68,25 @@ export function estimateEmptyLegDieselCostEur(
   return distance * inputs.consumptionLitresPerKm * inputs.priceEurPerLitre;
 }
 
-export function estimateEmptyLegCO2e(
+export interface EmptyLegEmissions {
+  readonly wellToTankGrams: GramsCO2e;
+  readonly tankToWheelGrams: GramsCO2e;
+  readonly wellToWheelGrams: GramsCO2e;
+}
+
+const GRAMS_PER_KG = 1_000;
+
+export function estimateEmptyLegEmissions(
   distance: Kilometres,
   consumptionLitresPerKm: number,
-  wtwKgCO2ePerLitre: number,
-): GramsCO2e {
+  wttKgCO2ePerLitre: number,
+  ttwKgCO2ePerLitre: number,
+): EmptyLegEmissions {
   const litres = distance * consumptionLitresPerKm;
-  const kgCO2e = litres * wtwKgCO2ePerLitre;
-  return gramsCO2e(kgCO2e * 1_000);
+  const wellToTankGrams = gramsCO2e(litres * wttKgCO2ePerLitre * GRAMS_PER_KG);
+  const tankToWheelGrams = gramsCO2e(litres * ttwKgCO2ePerLitre * GRAMS_PER_KG);
+  const wellToWheelGrams = gramsCO2e(wellToTankGrams + tankToWheelGrams);
+  return { wellToTankGrams, tankToWheelGrams, wellToWheelGrams };
 }
 
 export function ets2CostEur(co2e: GramsCO2e, carbonPriceEurPerTonne: number): number {

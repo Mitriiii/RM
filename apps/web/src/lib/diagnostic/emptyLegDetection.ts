@@ -11,13 +11,23 @@
  */
 export type EmptyDirection = 'AtoB' | 'BtoA' | 'balanced';
 
+/**
+ * A single shipment is not a pattern — see CLAUDE.md's rule against reporting a figure with
+ * no data-quality context. A lane with fewer than this many total recorded movements is
+ * reported back as having insufficient history rather than having an empty leg inferred from
+ * it; see report.ts's insufficientDataLanes.
+ */
+export const MIN_TOTAL_TRIPS_FOR_INFERENCE = 2;
+
 export interface LaneStats {
   readonly cityA: string;
   readonly cityB: string;
   readonly tripsAtoB: number;
   readonly tripsBtoA: number;
+  readonly totalTrips: number;
   readonly emptyDirection: EmptyDirection;
   readonly probableEmptyTrips: number;
+  readonly hasSufficientData: boolean;
 }
 
 export interface LaneTrip {
@@ -57,14 +67,17 @@ export function detectEmptyLegs(trips: readonly LaneTrip[]): readonly LaneStats[
 
   return [...lanes.values()].map((lane) => {
     const diff = lane.aToB - lane.bToA;
+    const totalTrips = lane.aToB + lane.bToA;
     const emptyDirection: EmptyDirection = diff > 0 ? 'BtoA' : diff < 0 ? 'AtoB' : 'balanced';
     return {
       cityA: lane.cityA,
       cityB: lane.cityB,
       tripsAtoB: lane.aToB,
       tripsBtoA: lane.bToA,
+      totalTrips,
       emptyDirection,
       probableEmptyTrips: Math.abs(diff),
+      hasSufficientData: totalTrips >= MIN_TOTAL_TRIPS_FOR_INFERENCE,
     };
   });
 }

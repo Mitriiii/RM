@@ -1,10 +1,11 @@
 import { gramsCO2e, kilometres } from '@freyo/shared';
 import { describe, expect, it } from 'vitest';
 import {
-  estimateEmptyLegCO2e,
   estimateEmptyLegDieselCostEur,
+  estimateEmptyLegEmissions,
   ets2CostEur,
   ETS2_DEFAULT_CARBON_PRICES_EUR_PER_TONNE,
+  ETS2_PRICE_CONTAINMENT_ANCHOR_EUR_PER_TONNE,
 } from './costs';
 
 describe('estimateEmptyLegDieselCostEur', () => {
@@ -25,11 +26,29 @@ describe('estimateEmptyLegDieselCostEur', () => {
   });
 });
 
-describe('estimateEmptyLegCO2e', () => {
-  it('converts distance x consumption x WTW factor into grams', () => {
-    const co2e = estimateEmptyLegCO2e(kilometres(100), 0.3, 3.17);
-    // 100km * 0.3 L/km = 30 L; 30 L * 3.17 kgCO2e/L = 95.1 kg = 95,100 g
-    expect(co2e).toBeCloseTo(95_100, 0);
+describe('estimateEmptyLegEmissions', () => {
+  it('converts distance x consumption x WTT/TTW factors into grams', () => {
+    const emissions = estimateEmptyLegEmissions(kilometres(100), 0.3, 0.49, 2.68);
+    // 100km * 0.3 L/km = 30 L
+    // WTT: 30 L * 0.49 kgCO2e/L = 14.7 kg = 14,700 g
+    // TTW: 30 L * 2.68 kgCO2e/L = 80.4 kg = 80,400 g
+    expect(emissions.wellToTankGrams).toBeCloseTo(14_700, 0);
+    expect(emissions.tankToWheelGrams).toBeCloseTo(80_400, 0);
+  });
+
+  it('well-to-wheel always equals well-to-tank plus tank-to-wheel — never an independent third number', () => {
+    const emissions = estimateEmptyLegEmissions(kilometres(325), 0.33, 0.49, 2.68);
+    expect(emissions.wellToWheelGrams).toBeCloseTo(
+      emissions.wellToTankGrams + emissions.tankToWheelGrams,
+      6,
+    );
+  });
+
+  it('is zero across all three components for zero distance', () => {
+    const emissions = estimateEmptyLegEmissions(kilometres(0), 0.3, 0.49, 2.68);
+    expect(emissions.wellToTankGrams).toBe(0);
+    expect(emissions.tankToWheelGrams).toBe(0);
+    expect(emissions.wellToWheelGrams).toBe(0);
   });
 });
 
@@ -53,5 +72,12 @@ describe('ets2CostEur', () => {
 
   it("the documented default price range includes zero, per the concept doc's own risk mitigation", () => {
     expect(ETS2_DEFAULT_CARBON_PRICES_EUR_PER_TONNE).toContain(0);
+  });
+
+  it('the documented default price range includes the ETS2 price-containment anchor', () => {
+    expect(ETS2_DEFAULT_CARBON_PRICES_EUR_PER_TONNE).toContain(
+      ETS2_PRICE_CONTAINMENT_ANCHOR_EUR_PER_TONNE,
+    );
+    expect(ETS2_PRICE_CONTAINMENT_ANCHOR_EUR_PER_TONNE).toBe(45);
   });
 });
