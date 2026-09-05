@@ -5,5 +5,10 @@
     "rootDir": "src"
   },
   "include": ["src"],
-  "references": [{ "path": "../shared" }, { "path": "../factors" }, { "path": "../emissions" }]
+  "references": [
+    { "path": "../shared" },
+    { "path": "../factors" },
+    { "path": "../emissions" },
+    { "path": "../routing" }
+  ]
 }

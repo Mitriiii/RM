@@ -1,0 +1,12 @@
+services:
+  osrm:
+    image: ghcr.io/project-osrm/osrm-backend:v5.27.1
+    container_name: freyo-osrm
+    ports:
+      - '5000:5000'
+    volumes:
+      - ./data:/data
+    # mld (multi-level Dijkstra) is the algorithm osrm-partition/osrm-customize prepare data
+    # for — see ../scripts/prepare-osrm-data.sh, which must run before this starts.
+    command: osrm-routed --algorithm mld /data/spain-latest.osrm
+    restart: unless-stopped

@@ -15,6 +15,20 @@
       "when": 1788541056254,
       "tag": "0001_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788610445296,
+      "tag": "0002_loose_madame_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1788610453451,
+      "tag": "0003_routing_cache_grants",
+      "breakpoints": true
     }
   ]
 }

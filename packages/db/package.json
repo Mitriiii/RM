@@ -22,6 +22,7 @@
   "dependencies": {
     "@freyo/emissions": "workspace:*",
     "@freyo/factors": "workspace:*",
+    "@freyo/routing": "workspace:*",
     "@freyo/shared": "workspace:*",
     "dotenv": "^16.4.7",
     "drizzle-orm": "^0.38.3",

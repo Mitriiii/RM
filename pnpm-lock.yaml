@@ -94,6 +94,9 @@ importers:
       '@freyo/factors':
         specifier: workspace:*
         version: link:../factors
+      '@freyo/routing':
+        specifier: workspace:*
+        version: link:../routing
       '@freyo/shared':
         specifier: workspace:*
         version: link:../shared

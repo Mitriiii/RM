@@ -9,5 +9,6 @@ export * from './members.js';
 export * from './movementLegs.js';
 export * from './movements.js';
 export * from './pairings.js';
+export * from './routingDistanceCache.js';
 export * from './sites.js';
 export * from './users.js';
