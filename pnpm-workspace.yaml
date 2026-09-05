@@ -3,3 +3,12 @@ packages:
   - 'packages/*'
 allowBuilds:
   esbuild: true
+# Pins a single @types/node across the whole workspace. Without this, packages/db's explicit
+# ^22.10.5 and vitest/next's floating peer dependency on @types/node can each resolve to a
+# different version (seen: 22.20.1 and 26.4.1, bundling incompatible undici-types Response
+# shapes) — which one gets hoisted to the ambient node_modules/@types slot that a package
+# with no explicit @types/node reference (e.g. packages/routing) resolves against isn't
+# guaranteed by the lockfile alone, so the same lockfile could typecheck cleanly on one
+# machine and fail on another (a real Vercel build failure this pin fixes).
+overrides:
+  '@types/node': 22.20.1
